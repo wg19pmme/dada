@@ -162,7 +162,7 @@ export function useInputBarState(): InputBarViewModel {
       ? '未分类'
       : resolveCategoryFilterName(activeCategoryFilter, categories)
   const promptHintText = isMobile
-    ? '先写主体需求，下面直接补充供应商、质量和尺寸'
+    ? '先写主体需求，下面直接补充GPT-Image2生图、质量和尺寸'
     : '桌面端支持 Ctrl+Enter 直接生成'
   const canSubmit = (prompt.trim() || inputImages.length) && settings.apiKey
   const atImageLimit = inputImages.length >= API_MAX_IMAGES

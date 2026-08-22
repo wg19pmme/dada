@@ -382,16 +382,16 @@ export function createProviderConfig(
     requestMode: normalizeRequestMode(settings.requestMode),
     responsesPromptRevisionMode,
     id,
-    name: name.trim() || '未命名供应商',
+    name: name.trim() || '未命名GPT-Image2生图',
   }
 }
 
 export function getNextProviderName(providers: ProviderConfig[]): string {
   let index = providers.length + 1
-  while (providers.some((provider) => provider.name === `供应商 ${index}`)) {
+  while (providers.some((provider) => provider.name === `GPT-Image2生图 ${index}`)) {
     index += 1
   }
-  return `供应商 ${index}`
+  return `GPT-Image2生图 ${index}`
 }
 
 export function createInitialProviderState(settings: Partial<AppSettings> = DEFAULT_SETTINGS) {
@@ -418,7 +418,7 @@ export function normalizeProviderList(providers: unknown): ProviderConfig[] {
       const { id, name, ...settings } = record
       return createProviderConfig(
         settings as Partial<AppSettings>,
-        typeof name === 'string' ? name : `供应商 ${index + 1}`,
+        typeof name === 'string' ? name : `GPT-Image2生图 ${index + 1}`,
         typeof id === 'string' && id ? id : undefined,
       )
     })
@@ -607,7 +607,7 @@ export function remapImportedTaskRelations(
   return {
     ...task,
     providerId: nextProviderId,
-    providerName: mappedProvider?.name?.trim() || task.providerName || '未知供应商',
+    providerName: mappedProvider?.name?.trim() || task.providerName || '未知GPT-Image2生图',
     categoryId: mappedCategory?.id ?? null,
     categoryName: mappedCategory?.name ?? null,
   }
