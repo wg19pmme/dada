@@ -33,7 +33,9 @@ export default function SettingsModal() {
   const setupVault = useStore((s) => s.setupVault)
   const commitVault = useStore((s) => s.commitVault)
   const lockVault = useStore((s) => s.lockVault)
+  const lockRemote = useStore((s) => s.lockRemote)
   const changePassword = useStore((s) => s.changePassword)
+  const remoteEnabled = useStore((s) => s.remoteEnabled)
 
   const importInputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState<AppSettings>(() => normalizeSettingsDraft(settings))
@@ -55,7 +57,7 @@ export default function SettingsModal() {
 
   const proxyConfig = readClientDevProxyConfig()
   const activeProvider = providers.find((provider) => provider.id === activeProviderId) ?? null
-  const needsSetup = showSettings && !isVaultConfigured()
+  const needsSetup = showSettings && !remoteEnabled && !isVaultConfigured()
 
   useEffect(() => {
     if (!showSettings) return
@@ -97,10 +99,12 @@ export default function SettingsModal() {
           ? DEFAULT_SETTINGS.timeout
           : nextTimeout,
     })
-    // 将最新配置加密落盘
-    void commitVault().catch(() => {})
+    // 将最新配置加密落盘（云端便携版由云端管理，跳过本地 vault）
+    if (!remoteEnabled) {
+      void commitVault().catch(() => {})
+    }
     setShowSettings(false)
-  }, [commitSettings, commitVault, draft, setShowSettings, timeoutInput])
+  }, [commitSettings, commitVault, remoteEnabled, draft, setShowSettings, timeoutInput])
 
   const commitTimeout = useCallback(() => {
     const nextTimeout = Number(timeoutInput)
@@ -196,7 +200,11 @@ export default function SettingsModal() {
           ? DEFAULT_SETTINGS.timeout
           : Number(timeoutInput),
     })
-    lockVault()
+    if (remoteEnabled) {
+      lockRemote()
+    } else {
+      lockVault()
+    }
     setShowSettings(false)
   }
 
@@ -219,18 +227,20 @@ export default function SettingsModal() {
             <div className="flex items-center gap-3">
               {!needsSetup && (
                 <>
-                  <button
-                    onClick={() => {
-                      setOldPassword('')
-                      setNewPassword('')
-                      setChangeError('')
-                      setShowChangePassword(true)
-                    }}
-                    className="rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
-                    title="修改访问密码"
-                  >
-                    改密码
-                  </button>
+                  {!remoteEnabled && (
+                    <button
+                      onClick={() => {
+                        setOldPassword('')
+                        setNewPassword('')
+                        setChangeError('')
+                        setShowChangePassword(true)
+                      }}
+                      className="rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
+                      title="修改访问密码"
+                    >
+                      改密码
+                    </button>
+                  )}
                   <button
                     onClick={handleLock}
                     className="rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
@@ -298,33 +308,50 @@ export default function SettingsModal() {
         ) : (
           <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-5 custom-scrollbar">
             <div className="space-y-6">
-              <ApiSettingsSection
-                draft={draft}
-                setDraft={setDraft}
-                timeoutInput={timeoutInput}
-                setTimeoutInput={setTimeoutInput}
-                showApiKey={showApiKey}
-                setShowApiKey={setShowApiKey}
-                providerNameInput={providerNameInput}
-                setProviderNameInput={setProviderNameInput}
-                providers={providers}
-                activeProviderId={activeProviderId}
-                proxyConfig={proxyConfig}
-                commitSettings={commitSettings}
-                commitProviderName={commitProviderName}
-                commitTimeout={commitTimeout}
-                flushDraft={flushDraft}
-                onActiveProviderChange={setActiveProvider}
-                onCreateProvider={createProvider}
-                onRequestRemoveProvider={() => {
-                  if (!activeProvider) return
-                  setConfirmDialog({
-                    title: '删除供应商',
-                    message: `确定删除供应商“${activeProvider.name}”吗？`,
-                    action: () => removeProvider(activeProvider.id),
-                  })
-                }}
-              />
+              {remoteEnabled ? (
+                <div className="rounded-xl border border-blue-200/70 bg-blue-50/70 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
+                  <div className="flex items-start gap-3">
+                    <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm">
+                      <p className="font-medium text-blue-700 dark:text-blue-300">云端便携版</p>
+                      <p className="mt-1 text-gray-600 dark:text-gray-300">
+                        生图 API 地址、Key、模型与登录密码已配置在 Cloudflare Pages 环境变量中，
+                        由云端统一管理，无需在此修改。
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ApiSettingsSection
+                  draft={draft}
+                  setDraft={setDraft}
+                  timeoutInput={timeoutInput}
+                  setTimeoutInput={setTimeoutInput}
+                  showApiKey={showApiKey}
+                  setShowApiKey={setShowApiKey}
+                  providerNameInput={providerNameInput}
+                  setProviderNameInput={setProviderNameInput}
+                  providers={providers}
+                  activeProviderId={activeProviderId}
+                  proxyConfig={proxyConfig}
+                  commitSettings={commitSettings}
+                  commitProviderName={commitProviderName}
+                  commitTimeout={commitTimeout}
+                  flushDraft={flushDraft}
+                  onActiveProviderChange={setActiveProvider}
+                  onCreateProvider={createProvider}
+                  onRequestRemoveProvider={() => {
+                    if (!activeProvider) return
+                    setConfirmDialog({
+                      title: '删除供应商',
+                      message: `确定删除供应商“${activeProvider.name}”吗？`,
+                      action: () => removeProvider(activeProvider.id),
+                    })
+                  }}
+                />
+              )}
 
               <DataManagementSection
                 importInputRef={importInputRef}

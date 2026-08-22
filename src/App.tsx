@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { initStore, startRecycleBinJanitor } from './store'
+import { initStore, startRecycleBinJanitor, useStore } from './store'
 import { Header } from './app/components'
 import { ImageContextMenu, TaskGrid } from './features/gallery'
 import { InputBar, PromptLibraryDrawer, SearchBar } from './features/input'
@@ -10,6 +10,8 @@ import { ConfirmDialog, Toast } from './shared/components'
 export default function App() {
   useEffect(() => {
     initStore()
+    // 云端便携版：探测 Cloudflare Pages 远程配置（若启用则进入远程登录门禁）
+    void useStore.getState().initRemoteConfig()
     const stopRecycleBinJanitor = startRecycleBinJanitor()
 
     return () => {

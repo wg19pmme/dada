@@ -8,6 +8,7 @@
 > - **图片本地缓存**：图片与任务数据通过 IndexedDB 存储在浏览器本地，天然满足本地缓存需求。
 > - **设置密码加密保护**：生图 API 上游接口（baseUrl / apiKey / model 等）在界面配置，并用**访问密码**通过 `PBKDF2 + AES-GCM` 加密后保存在浏览器本地；每次打开应用需输入密码解锁才能使用，`apiKey` 不在磁盘落明文，也不会写进源码/公开仓库。
 > - **可静态部署**：`npm run build` 产出的 `dist/` 为纯静态站点（相对路径），可直接部署到 Cloudflare Pages / GitHub Pages / Vercel 等静态托管。
+> - **云端便携版**：部署到 Cloudflare Pages 时可把 **API 地址 / Key / 模型 / 网页登录密码**统一配置在环境变量里（见 §1.1），任何设备打开网页输入同一个登录密码即可使用，无需每台单独配置。
 
 一个面向 OpenAI / GPT Image 工作流的本地优先图片生成与编辑工作台。  
 它提供纯前端 Web UI，支持文本生图、参考图编辑、局部编辑、任务画廊、多供应商配置、Responses / Images 双协议兼容、流式优先传输、生成中增量保留已出图，以及本地数据导入导出。
@@ -330,6 +331,33 @@ npm run tauri:build
 > - 想锁定当前会话：点设置里的**锁定**，即会清空内存中的 API Key。
 > - 由于配置已改为界面+加密，不再依赖源码 `src/local-config.ts`；该文件仅保留非敏感的默认值（baseUrl / model 等），`apiKey` 默认恒为空。
 
+#### 1.1 云端便携版（推荐：部署到 Cloudflare，任何设备同一个密码即可用）
+
+如果你希望**把 API 地址、Key、模型、网页端登录密码统一配置在 Cloudflare 里**，
+部署后任何设备打开网页输入同一个登录密码即可使用，无需在每台设备上单独配置，请用下面的方式。
+
+**原理**：本项目内置了 Cloudflare Pages Function（`functions/_config.ts`），
+它会读取 Cloudflare Pages 环境变量并在前端探测；检测到已配置时自动进入「云端便携版」模式，
+由云端统一下发生图 API 配置，并校验统一的网页端登录密码。
+
+**在 Cloudflare Pages → Settings → Environment variables 配置以下变量：**
+
+| 环境变量 | 说明 | 示例 |
+| --- | --- | --- |
+| `API_BASE_URL` | 生图 API 上游接口地址 | `https://api.openai.com` |
+| `API_MODEL` | Images API 模型 | `gpt-image-2` |
+| `RESPONSES_IMAGE_MODEL` | Responses API 图片模型（可选，默认取 `API_MODEL`） | `gpt-image-2` |
+| `API_KEY` | 上游接口的 API Key | `sk-xxxx` |
+| `APP_PASSWORD` | 网页端登录密码 | `你的密码` |
+
+**注意**：
+- 若使用方式 A（直接拖拽 `dist/` 上传），`functions/` 不会被部署，无法启用云端便携版；
+  请改用方式 B（连接 Git 仓库自动部署），让 Cloudflare 一并编译 `functions/`。
+- `API_KEY` 与 `APP_PASSWORD` 只存在于服务端，不会写入前端产物；
+  密码通过 `/_config/login` 在服务端校验，校验通过后才会向当前会话下发 `apiKey`。
+- 启用云端便携版后，界面设置中的 API 配置区会自动隐藏（由云端统一管理），
+  仅保留「锁定」与数据管理功能。
+
 ### 2. 本地开发（需命令）
 
 ```bash
@@ -418,8 +446,8 @@ npm run build   # 生成 dist/
 **注意事项**
 
 - 静态托管环境只能使用 `direct` 请求模式，要求上游接口支持浏览器直连（`HTTPS`、`CORS`、预检）。
-- 由于本项目**默认纯前端直连**，API Key 仅在解锁后存在于浏览器内存中，并加密保存于浏览器本地（见“配置 API 上游”）；没有密码无法使用。
-- 想更安全地隐藏上游 Key，可改用 Cloudflare Pages Functions / Worker 做代理，把 Key 存为 Cloudflare secret（属于进阶方案，本项目未默认启用）。
+- 若采用方式 A（拖拽 `dist/`）部署，应用为**本地密码加密**模式：API Key 仅在解锁后存在于浏览器内存，并加密保存于浏览器本地（见“配置 API 上游”）；没有密码无法使用。
+- 若希望**把 API 地址、Key、模型、网页登录密码统一配置在 Cloudflare**、任何设备输入同一个密码即可使用，请使用**方式 B**（连接 Git 仓库）部署，并配置环境变量（见上文 §1.1「云端便携版」）。只有方式 B 才会部署 `functions/` 下的 Pages Function，从而启用云端便携版。
 
 #### 5.2 GitHub Pages
 

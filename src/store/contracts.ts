@@ -91,6 +91,12 @@ export interface AppState {
   lockVault: () => void
   changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>
 
+  // 云端便携版（Cloudflare Pages 远程配置）状态
+  remoteEnabled: boolean
+  initRemoteConfig: () => Promise<boolean>
+  loginRemote: (password: string) => Promise<boolean>
+  lockRemote: () => void
+
   shareToSquareTarget: SquareShareTarget | null
   setShareToSquareTarget: (target: SquareShareTarget | null) => void
 

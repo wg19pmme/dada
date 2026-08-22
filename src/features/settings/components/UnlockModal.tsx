@@ -3,18 +3,23 @@ import { useStore } from '../../../store'
 import { isVaultConfigured } from '../../../lib/vault'
 
 /**
- * 密码解锁门禁：当本地已存在加密保险库但当前会话未解锁时，全屏拦截。
- * 只有输入正确密码解锁后，才可进入应用使用。
+ * 密码解锁门禁：当应用需要解锁时全屏拦截。
+ * - 云端便携版（已启用 Cloudflare Pages 远程配置）：输入网页端登录密码，
+ *   密码正确后从云端下发生图 API 配置（地址 / key / 模型），任何设备输入同一个密码即可使用。
+ * - 本地版：输入本地保险库密码解锁本地加密保存的配置。
  */
 export default function UnlockModal() {
   const unlocked = useStore((s) => s.unlocked)
+  const remoteEnabled = useStore((s) => s.remoteEnabled)
   const unlockVault = useStore((s) => s.unlockVault)
+  const loginRemote = useStore((s) => s.loginRemote)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const configured = isVaultConfigured()
-  const locked = configured && !unlocked
+  const vaultConfigured = isVaultConfigured()
+  // 云端便携版：远程配置启用时，直接要求登录（无视本地 vault）
+  const locked = remoteEnabled ? !unlocked : vaultConfigured && !unlocked
 
   useEffect(() => {
     if (!locked) {
@@ -31,7 +36,12 @@ export default function UnlockModal() {
     if (!password || busy) return
     setBusy(true)
     setError('')
-    const ok = await unlockVault(password)
+    let ok: boolean
+    if (remoteEnabled) {
+      ok = await loginRemote(password)
+    } else {
+      ok = await unlockVault(password)
+    }
     setBusy(false)
     if (!ok) {
       setPassword('')
@@ -56,7 +66,9 @@ export default function UnlockModal() {
         </div>
         <h2 className="text-center text-lg font-semibold text-gray-800 dark:text-gray-100">已锁定</h2>
         <p className="mt-1 text-center text-sm text-gray-500 dark:text-gray-400">
-          请输入访问密码解锁，才能使用生图 API 配置
+          {remoteEnabled
+            ? '请输入网页端登录密码，解锁云端生图 API 配置'
+            : '请输入访问密码解锁，才能使用生图 API 配置'}
         </p>
         <form onSubmit={handleUnlock} className="mt-5 space-y-3">
           <input
@@ -64,7 +76,7 @@ export default function UnlockModal() {
             autoFocus
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="访问密码"
+            placeholder="登录密码"
             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/10 dark:bg-gray-800 dark:text-gray-100"
           />
           {error && <p className="text-xs text-red-500">{error}</p>}
@@ -73,7 +85,7 @@ export default function UnlockModal() {
             disabled={!password || busy}
             className="w-full rounded-lg bg-blue-600 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy ? '解锁中…' : '解锁'}
+            {busy ? '登录中…' : '登录'}
           </button>
         </form>
       </div>

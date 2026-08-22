@@ -1,3 +1,4 @@
+import type { AppSettings } from '../../types'
 import type { AppState, VaultSnapshot } from '../contracts'
 import {
   decryptVault,
@@ -5,6 +6,7 @@ import {
   readVaultPayload,
   writeVaultPayload,
 } from '../../lib/vault'
+import { fetchRemoteConfig, loginRemoteConfig } from '../../lib/remoteConfig'
 import { useStore } from '../state'
 
 /**
@@ -132,6 +134,54 @@ export function createVaultSlice(set: any) {
       } catch {
         return false
       }
+    },
+
+    /** 云端便携版：是否启用了远程配置 */
+    remoteEnabled: false,
+
+    /** 云端便携版：探测远程配置；启用则返回 true */
+    async initRemoteConfig(): Promise<boolean> {
+      const config = await fetchRemoteConfig()
+      set({ remoteEnabled: config.enabled })
+      return config.enabled
+    },
+
+    /** 云端便携版：用登录密码换取云端配置；密码错误返回 false */
+    async loginRemote(password: string): Promise<boolean> {
+      if (!password) return false
+      const result = await loginRemoteConfig(password)
+      if (!result || !result.ok || !result.baseUrl) {
+        return false
+      }
+      sessionPassword = null
+      const remoteOverrides: Partial<AppSettings> = {
+        baseUrl: result.baseUrl,
+        apiKey: result.apiKey ?? '',
+        model: result.model ?? '',
+        responsesImageModel: result.responsesImageModel ?? result.model ?? '',
+      }
+      set((state: AppState) => {
+        const nextSettings = {
+          ...state.settings,
+          ...remoteOverrides,
+        }
+        return {
+          settings: nextSettings,
+          providers: state.providers.map((provider) =>
+            provider.id === state.activeProviderId
+              ? { ...provider, ...remoteOverrides }
+              : provider,
+          ),
+          unlocked: true,
+        }
+      })
+      return true
+    },
+
+    /** 云端便携版：锁定（清空内存中的云端 apiKey） */
+    lockRemote() {
+      sessionPassword = null
+      lockState(set)
     },
   }
 }
