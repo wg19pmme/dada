@@ -85,7 +85,7 @@ export default function DetailParamsSection(props: DetailParamsSectionProps) {
       <div className="mb-4 grid grid-cols-2 gap-2 text-xs">
         {renderValueCard('分类', categoryName)}
         {renderValueCard('收藏', isFavorite ? '已收藏' : '未收藏')}
-        {renderValueCard('GPT-Image2生图', providerName)}
+        {renderValueCard('GPT-Image2', providerName)}
         {renderValueCard('状态', statusLabel)}
         {isImageTask ? renderValueCard('任务类型', '单图任务') : null}
         {progressCountLabel ? renderValueCard('当前张数', progressCountLabel) : null}

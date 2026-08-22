@@ -1,4 +1,4 @@
-export const DEFAULT_PROVIDER_NAME = 'GPT-Image2生图'
+export const DEFAULT_PROVIDER_NAME = 'GPT-Image2'
 export const RECYCLE_BIN_RETENTION_MS = 15 * 24 * 60 * 60 * 1000
 export const RECYCLE_BIN_POLL_INTERVAL_MS = 10 * 60 * 1000
 export const ERROR_LOG_RETENTION_MS = 15 * 24 * 60 * 60 * 1000

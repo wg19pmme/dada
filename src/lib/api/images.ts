@@ -35,7 +35,7 @@ function normalizeImagesEditCompatibilityError(error: unknown): unknown {
 
   const apiError = error as ApiError
   return createApiError(
-    '当前GPT-Image2生图的 /v1/images/edits 兼容性不足，看起来只支持 /v1/images/generations，或其内部文件上传链路被拦截。请优先改用 Responses 协议做参考图编辑，或更换为明确支持 /images/edits 的GPT-Image2生图。',
+    '当前GPT-Image2的 /v1/images/edits 兼容性不足，看起来只支持 /v1/images/generations，或其内部文件上传链路被拦截。请优先改用 Responses 协议做参考图编辑，或更换为明确支持 /images/edits 的GPT-Image2。',
     apiError.status,
     {
       requestId: apiError.requestId,

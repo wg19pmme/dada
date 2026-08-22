@@ -30,7 +30,7 @@ export default function ApiProviderFields({
     <>
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
         <label className="block">
-          <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">GPT-Image2生图</span>
+          <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">GPT-Image2</span>
           <Select
             value={activeProviderId}
             onChange={(value) => {
@@ -69,17 +69,17 @@ export default function ApiProviderFields({
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">GPT-Image2生图名称</span>
+        <span className="mb-1 block text-xs text-gray-500 dark:text-gray-400">GPT-Image2名称</span>
         <input
           value={providerNameInput}
           onChange={(event) => setProviderNameInput(event.target.value)}
           onBlur={commitProviderName}
           type="text"
-          placeholder="GPT-Image2生图名称"
+          placeholder="GPT-Image2名称"
           className={fieldClassName}
         />
         <div className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
-          不同GPT-Image2生图会分别保存 API URL、API Key、协议、模型和超时配置。
+          不同GPT-Image2会分别保存 API URL、API Key、协议、模型和超时配置。
         </div>
       </label>
     </>

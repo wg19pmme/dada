@@ -33,7 +33,7 @@ export default function ParamsCoreFields({
   return (
     <>
       <label className={`flex flex-col ${labelGapClass}`}>
-        <span className="font-medium text-gray-500 dark:text-gray-400">GPT-Image2生图</span>
+        <span className="font-medium text-gray-500 dark:text-gray-400">GPT-Image2</span>
         <Select
           value={activeProviderId}
           onChange={(value) => onActiveProviderChange(String(value))}
