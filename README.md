@@ -279,7 +279,41 @@ npm run tauri:build
 - `nsis/`：安装程序（.exe）
 - `exe/`：免安装单文件可执行程序
 
-> 注意：Tauri 打包需在目标平台各自编译。本仓库内置的是 Linux CI，无法在 Linux 环境直接产出 Windows exe；要出 `.exe` 请在 Windows 机器上执行 `npm run tauri:build`（或在 Windows Runner 的 CI 中执行）。
+> 注意：Tauri 打包需在目标平台各自编译。本仓库内置的是 Linux CI，无法在 Linux 环境直接产出 Windows exe；要出 `.exe` 必须在 Windows 环境编译。
+
+**方式 A：网页“点一下”自动打包（推荐，配好一次以后最省事）**
+
+仓库已配置 CNB 云原生构建流水线（`.cnb.yml` + `.cnb/web_trigger.yml`），支持在网页上**点一下按钮**自动在 Windows 构建机上打包并产出 `.exe` 安装包：
+
+1. **一次性接入一台 Windows 构建机**（见下方“接入 Windows 构建机”）。
+2. 打开仓库任意分支的「代码-分支详情页」，点击 **“打包 Windows 桌面版 (.exe)”** 按钮。
+3. 等待构建完成后，到仓库的 **Release 页面**（`https://cnb.cool/<组织>/<仓库>/-/releases`）下载对应版本的 `.exe` / `.msi`，发给小白双击安装即可。
+
+**接入 Windows 构建机（一次性，仅需一台装有 Windows 的电脑）**
+
+1. 在该 Windows 电脑上安装 [Node.js 18+](https://nodejs.org) 与 [Rust](https://www.rust-lang.org/tools/install)（均默认“下一步”即可），并确保已装 WebView2 运行库（Win10/11 一般自带）。
+2. 进入「根组织 → 组织设置 → 构建节点」，点击「+ 新增 Runner」，填写名称与标签（如 `windows`、`x86_64`）保存。
+3. 点击该 Runner 行尾的「连接指引」，在 Windows 电脑上执行弹窗里的一键接入脚本，节点变为「在线」即接入成功。
+4. 之后每次在网页点一下“打包 Windows 桌面版”按钮即可自动出 `.exe`。
+
+> 说明：Windows 打包必须运行在 Windows 环境，平台默认的 Linux 构建机无法产出 Windows exe，故需要接入一台 Windows 自托管构建机；这是 Tauri 的客观限制，无法绕过。
+
+**方式 B：本地手动打包（无需网页，但需本机装 Rust）**
+
+1. 装 [Rust](https://www.rust-lang.org/tools/install)（默认下一步即可）
+2. 安装 WebView2 运行库（Win10/11 通常已自带）
+3. 在仓库根目录执行：
+
+```bash
+npm install
+npm run tauri:build
+```
+
+构建产物在 `src-tauri/target/release/bundle/` 下：
+
+- `msi/`：安装包
+- `nsis/`：安装程序（.exe）
+- `exe/`：免安装单文件可执行程序
 
 ### 1. 配置 API 上游（必要）
 

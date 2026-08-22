@@ -1,0 +1,21 @@
+$:
+  web_trigger_build_win:
+    - name: 打包 Windows 桌面版 (.exe)
+      # Windows 打包必须运行在 Windows 构建环境上，调度到已接入的自托管 Windows 构建节点。
+      runner:
+        namespace: group
+        tags:
+          - windows
+      env:
+        RELEASE_TAG: $RELEASE_TAG
+      stages:
+        - name: build-windows-desktop
+          timeout: 60m
+          script: |
+            # Windows 自托管构建机默认 shell 为 PowerShell。
+            # 若构建机上已把默认 shell 切换为 cmd，可用 powershell -ExecutionPolicy Bypass -File 调用。
+            if (Get-Command pwsh -ErrorAction SilentlyContinue) {
+                pwsh -ExecutionPolicy Bypass -File ./scripts/build-win-ci.ps1
+            } else {
+                powershell -ExecutionPolicy Bypass -File ./scripts/build-win-ci.ps1
+            }

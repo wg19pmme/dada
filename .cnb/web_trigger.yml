@@ -1,0 +1,12 @@
+branch:
+  - buttons:
+      - name: 打包 Windows 桌面版 (.exe)
+        description: 在已接入的 Windows 构建机上编译并打包出可双击运行的 Windows 桌面应用，产物上传为 Release 附件供下载。
+        event: web_trigger_build_win
+        inputs:
+          RELEASE_TAG:
+            name: 版本号
+            type: input
+            required: false
+            default: v1.0.1
+            description: 作为 Release 的 Tag 使用（例如 v1.0.2），留空默认 v1.0.1
