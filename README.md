@@ -229,13 +229,39 @@ workers/square-api
 
 ### 0. 打开即用（不会敲命令的小白模式）
 
-仓库根目录提供**一键启动脚本**，双击即可自动完成“装依赖 → 起服务 → 打开浏览器”，全程无需敲命令：
+仓库根目录提供**一键启动脚本**，双击即可自动打开，全程无需敲命令：
 
 - **Windows**：双击 `start.bat`
 - **macOS / Linux**：双击 `start.sh`
 
-> 前置条件：机器上需安装 [Node.js 18+](https://nodejs.org)。首次运行会自动安装依赖（需联网）。
+启动脚本采用“**静态产物优先**”策略：
+
+1. 若目录下存在构建产物 `dist/`，直接用内置**零依赖静态服务器**（`server.js`）启动，**无需 node_modules、无需联网安装依赖**，即开即用。
+2. 若没有 `dist/`，才回退到开发模式：自动装依赖 → `vite dev`。
+
+> 前置条件：机器上需安装 [Node.js 18+](https://nodejs.org)。
 > 首次启动后请先按下方“配置 API 上游”填入你的 API 信息。
+
+#### 0.1 生成“解压即用”绿色安装包
+
+运行打包脚本，可把 `dist/` + 静态服务器 + 启动脚本一起打进 zip，分发给别人解压后双击即用：
+
+```bash
+bash build-portable.sh
+```
+
+会在 `dist-portable/` 下生成 `gpt-image-playground-<版本>-<平台>.zip`。用户解压后双击 `start.bat` / `start.sh` 即可，无需 `node_modules`、无需 `npm install`。
+
+> 进阶：若想连 Node.js 都不用装，可把该 zip 目录与对应平台的**便携版 Node.js** 一起打包发布，即可真正做到零环境依赖。
+
+#### 0.2 想要更原生的桌面应用？用 Tauri 套壳
+
+如果你希望得到一个**真正的桌面 App**（双击 `.exe` / `.app` 直接打开，连浏览器都不用），推荐用 **Tauri** 套壳：
+
+- 本应用是纯前端、构建产物为相对路径的静态站点（`base: './'`），天然适合 Tauri 的 `Webview` 承载。
+- 基础接入：在仓库根目录执行 `npm create tauri-app`，把 `dist/` 设为 `frontendDist`，即可把整个应用套进原生窗口；本地数据仍由 Webview 内置的 IndexedDB 保存，无需改动业务代码。
+- Tauri 产出的 exe/dmg 体积小（相比 Electron 可小几十倍），且不要求用户装 Node。
+- 注意：Tauri 打包需在目标平台（Windows/macOS/Linux）各自编译并签名，需在对应系统或 CI 各平台 Runner 上执行 `tauri build`，无法在一个环境里同时产出全部平台安装包。
 
 ### 1. 配置 API 上游（必要）
 
