@@ -74,7 +74,7 @@ export default function ImageEditSidebar(props: ImageEditSidebarProps) {
 
       <div className="mt-5 space-y-4">
         <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
-          <div className="mb-2 text-xs text-white/45">供应商</div>
+          <div className="mb-2 text-xs text-white/45">GPT-Image2</div>
           <Select
             value={selectedProviderId}
             onChange={(value) => onProviderChange(String(value))}

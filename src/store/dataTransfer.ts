@@ -563,10 +563,10 @@ export async function importData(file: File) {
       summaryParts.push(`跳过 ${skippedImageCount} 张重复图片`)
     }
     if (addedProviderCount > 0) {
-      summaryParts.push(`新增 ${addedProviderCount} 个供应商`)
+      summaryParts.push(`新增 ${addedProviderCount} 个GPT-Image2`)
     }
     if (skippedProviderCount > 0) {
-      summaryParts.push(`跳过 ${skippedProviderCount} 个重复供应商`)
+      summaryParts.push(`跳过 ${skippedProviderCount} 个重复GPT-Image2`)
     }
     if (addedCategoryCount > 0) {
       summaryParts.push(`新增 ${addedCategoryCount} 个分类`)

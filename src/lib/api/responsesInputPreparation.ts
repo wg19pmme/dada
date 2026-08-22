@@ -349,7 +349,7 @@ export async function prepareResponsesInputWithFallback(
     } catch (fallbackError) {
       if (fallbackError instanceof Error && /Responses .*file_id 上传/.test(fallbackError.message)) {
         throw createApiError(
-          '当前供应商的 /v1/responses 会因原图和蒙版内联导致请求体过大，同时也不支持 /v1/files 上传。请改用更小图片，或更换为支持 file_id / images/edits 的供应商。',
+          '当前GPT-Image2的 /v1/responses 会因原图和蒙版内联导致请求体过大，同时也不支持 /v1/files 上传。请改用更小图片，或更换为支持 file_id / images/edits 的GPT-Image2。',
           (error as ApiError | undefined)?.status ?? (fallbackError as ApiError | undefined)?.status,
         )
       }

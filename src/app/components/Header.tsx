@@ -9,7 +9,7 @@ export default function Header() {
     <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-blur border-b border-gray-200 dark:border-white/[0.08]">
       <div className="mx-auto flex h-12 max-w-7xl items-center justify-between gap-3 px-4">
         <h1 className="min-w-0 flex-1 truncate text-[15px] font-bold tracking-tight text-gray-800 dark:text-gray-100 sm:text-base">
-          GPT Image Playground
+          GPT-Image2
         </h1>
         <div className="flex flex-shrink-0 items-center gap-1.5">
           <button

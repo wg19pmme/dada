@@ -345,8 +345,8 @@ export default function SettingsModal() {
                   onRequestRemoveProvider={() => {
                     if (!activeProvider) return
                     setConfirmDialog({
-                      title: '删除供应商',
-                      message: `确定删除供应商“${activeProvider.name}”吗？`,
+                      title: '删除GPT-Image2',
+                      message: `确定删除GPT-Image2“${activeProvider.name}”吗？`,
                       action: () => removeProvider(activeProvider.id),
                     })
                   }}
