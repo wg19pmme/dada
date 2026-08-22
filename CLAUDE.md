@@ -44,7 +44,11 @@ npm run preview
 │  ├─ code-style.md
 │  └─ images/
 ├─ functions/
-│  └─ _config.ts               Cloudflare Pages Function（云端便携版配置/登录）
+│  ├─ _config.ts               Cloudflare Pages Function（云端便携版配置/登录）
+│  ├─ _config/
+│  │  └─ session.ts            会话 token 免密续期（/session）
+│  └─ _lib/
+│     └─ session.ts            签名会话 token 工具（签发/校验）
 ├─ public/
 ├─ src/
 │  ├─ app/                      应用级骨架组件

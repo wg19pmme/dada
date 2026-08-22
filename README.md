@@ -250,12 +250,17 @@ Cloudflare Pages 环境变量里，部署后任何设备打开网页输入同一
 | `RESPONSES_IMAGE_MODEL` | Responses API 图片模型（可选，默认取 `API_MODEL`） | `gpt-image-2` |
 | `API_KEY` | 上游接口的 API Key | `sk-xxxx` |
 | `APP_PASSWORD` | 网页端登录密码 | `你的密码` |
+| `REMOTE_SESSION_TTL_DAYS` | 登录态有效期（天，可选，默认 `30`） | `30` |
 
 **注意**：
 - 若使用方式 A（直接拖拽 `dist/` 上传），`functions/` 不会被部署，无法启用云端便携版；
   请改用方式 B（连接 Git 仓库自动部署），让 Cloudflare 一并编译 `functions/`。
 - `API_KEY` 与 `APP_PASSWORD` 只存在于服务端，不会写入前端产物；
   密码通过 `/_config/login` 在服务端校验，校验通过后才会向当前会话下发 `apiKey`。
+- **登录态保持**：登录成功后，服务端会签发一个签名会话 token（默认有效期 30 天，可用
+  `REMOTE_SESSION_TTL_DAYS` 调整），前端存到浏览器本地；之后刷新 / 重新打开页面时
+  会自动用该 token 免密续期解锁，无需反复输入登录密码。token 过期或点击「锁定」后
+  才需要重新输入密码。
 - 启用云端便携版后，界面设置中的 API 配置区会自动隐藏（由云端统一管理），
   仅保留「锁定」与数据管理功能。
 
@@ -377,7 +382,11 @@ npm run build   # 生成 dist/
 │  ├─ code-style.md            详细代码规范
 │  └─ images/                  README 截图资源
 ├─ functions/
-│  └─ _config.ts                Cloudflare Pages Function（云端便携版配置/登录）
+│  ├─ _config.ts                Cloudflare Pages Function（云端便携版配置/登录）
+│  ├─ _config/
+│  │  └─ session.ts             会话 token 免密续期（/session）
+│  └─ _lib/
+│     └─ session.ts             签名会话 token 工具（签发/校验）
 ├─ logs/
 │  ├─ proxy-success.jsonl       本地开发代理成功请求日志
 │  └─ proxy-error.jsonl         本地开发代理失败请求日志

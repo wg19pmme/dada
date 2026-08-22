@@ -11,7 +11,12 @@ export default function App() {
   useEffect(() => {
     initStore()
     // 云端便携版：探测 Cloudflare Pages 远程配置（若启用则进入远程登录门禁）
-    void useStore.getState().initRemoteConfig()
+    void useStore.getState().initRemoteConfig().then((enabled) => {
+      // 已登录过（本地存有会话 token）：免密续期解锁，避免每次刷新都要重新输入密码
+      if (enabled) {
+        void useStore.getState().restoreRemoteSession()
+      }
+    })
     const stopRecycleBinJanitor = startRecycleBinJanitor()
 
     return () => {

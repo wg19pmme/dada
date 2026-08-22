@@ -95,6 +95,7 @@ export interface AppState {
   remoteEnabled: boolean
   initRemoteConfig: () => Promise<boolean>
   loginRemote: (password: string) => Promise<boolean>
+  restoreRemoteSession: () => Promise<boolean>
   lockRemote: () => void
 
   shareToSquareTarget: SquareShareTarget | null

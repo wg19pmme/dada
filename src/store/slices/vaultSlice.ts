@@ -6,7 +6,15 @@ import {
   readVaultPayload,
   writeVaultPayload,
 } from '../../lib/vault'
-import { fetchRemoteConfig, loginRemoteConfig } from '../../lib/remoteConfig'
+import {
+  fetchRemoteConfig,
+  loginRemoteConfig,
+  refreshRemoteConfig,
+  saveRemoteSessionToken,
+  readRemoteSessionToken,
+  clearRemoteSessionToken,
+  type RemoteLoginResult,
+} from '../../lib/remoteConfig'
 import { useStore } from '../state'
 
 /**
@@ -54,6 +62,16 @@ function buildSnapshotFromState(state: AppState): VaultSnapshot {
     settings: state.settings,
     providers: state.providers,
     activeProviderId: state.activeProviderId,
+  }
+}
+
+/** 从云端登录结果提取需要覆盖到 store 的敏感配置字段 */
+function remoteOverrides(result: RemoteLoginResult): Partial<AppSettings> {
+  return {
+    baseUrl: result.baseUrl,
+    apiKey: result.apiKey ?? '',
+    model: result.model ?? '',
+    responsesImageModel: result.responsesImageModel ?? result.model ?? '',
   }
 }
 
@@ -154,22 +172,20 @@ export function createVaultSlice(set: any) {
         return false
       }
       sessionPassword = null
-      const remoteOverrides: Partial<AppSettings> = {
-        baseUrl: result.baseUrl,
-        apiKey: result.apiKey ?? '',
-        model: result.model ?? '',
-        responsesImageModel: result.responsesImageModel ?? result.model ?? '',
+      // 保存签名会话 token，供刷新 / 重新打开页面时免密续期解锁
+      if (result.token) {
+        saveRemoteSessionToken(result.token)
       }
       set((state: AppState) => {
         const nextSettings = {
           ...state.settings,
-          ...remoteOverrides,
+          ...remoteOverrides(result),
         }
         return {
           settings: nextSettings,
           providers: state.providers.map((provider) =>
             provider.id === state.activeProviderId
-              ? { ...provider, ...remoteOverrides }
+              ? { ...provider, ...remoteOverrides(result) }
               : provider,
           ),
           unlocked: true,
@@ -178,9 +194,44 @@ export function createVaultSlice(set: any) {
       return true
     },
 
-    /** 云端便携版：锁定（清空内存中的云端 apiKey） */
+    /**
+     * 云端便携版：用本地保存的会话 token 免密恢复登录态。
+     * 成功则自动解锁并续期 token；token 失效则清除本地 token 并返回 false（重新弹登录框）。
+     */
+    async restoreRemoteSession(): Promise<boolean> {
+      const token = readRemoteSessionToken()
+      if (!token) return false
+      const result = await refreshRemoteConfig(token)
+      if (!result || !result.ok || !result.baseUrl) {
+        clearRemoteSessionToken()
+        return false
+      }
+      sessionPassword = null
+      if (result.token) {
+        saveRemoteSessionToken(result.token)
+      }
+      set((state: AppState) => {
+        const nextSettings = {
+          ...state.settings,
+          ...remoteOverrides(result),
+        }
+        return {
+          settings: nextSettings,
+          providers: state.providers.map((provider) =>
+            provider.id === state.activeProviderId
+              ? { ...provider, ...remoteOverrides(result) }
+              : provider,
+          ),
+          unlocked: true,
+        }
+      })
+      return true
+    },
+
+    /** 云端便携版：锁定（清空内存中的云端 apiKey 与本地会话 token） */
     lockRemote() {
       sessionPassword = null
+      clearRemoteSessionToken()
       lockState(set)
     },
   }
