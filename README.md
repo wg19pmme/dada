@@ -224,7 +224,33 @@ workers/square-api
 
 ## 快速开始
 
-### 1. 本地开发
+> 本便携版已**移除界面上的“设置”入口**，生图 API 上游接口统一在源码
+> `src/local-config.ts` 中配置（见下方“配置 API 上游”）。
+
+### 0. 打开即用（不会敲命令的小白模式）
+
+仓库根目录提供**一键启动脚本**，双击即可自动完成“装依赖 → 起服务 → 打开浏览器”，全程无需敲命令：
+
+- **Windows**：双击 `start.bat`
+- **macOS / Linux**：双击 `start.sh`
+
+> 前置条件：机器上需安装 [Node.js 18+](https://nodejs.org)。首次运行会自动安装依赖（需联网）。
+> 首次启动后请先按下方“配置 API 上游”填入你的 API 信息。
+
+### 1. 配置 API 上游（必要）
+
+编辑源码文件 **`src/local-config.ts`**，填入你的生图 API 上游地址、Key 和模型，然后重新构建/启动：
+
+```ts
+// src/local-config.ts
+baseUrl: 'https://api.openai.com', // 上游接口地址
+apiKey: 'sk-xxxx',                 // 你的 API Key（勿提交到公开仓库）
+model: 'gpt-image-2',              // 生图模型
+```
+
+> 该配置始终优先于浏览器本地缓存中的旧设置，改完即生效。
+
+### 2. 本地开发（需命令）
 
 ```bash
 npm install
@@ -243,16 +269,7 @@ npm run test
 http://localhost:5173
 ```
 
-进入页面后，在右上角设置中填写：
-
-- `API URL`
-- `API Key`
-- `协议模式（Images / Responses）`
-- `传输偏好（auto / stream / json）`
-- `请求超时（默认 900 秒）`
-- `请求模式（direct / local_proxy）`
-
-### 2. 本地代理开发
+### 3. 本地代理开发
 
 如果你的接口没有正确放开浏览器跨域，可以启用本地代理。
 
@@ -282,7 +299,7 @@ http://localhost:5173
 
 同时，前端任务失败时会把该次请求的完整错误快照保存在浏览器本地 IndexedDB 中；“复制完整报错”优先使用这份本地日志，不依赖 `logs/` 目录。
 
-### 3. 构建产物
+### 4. 构建产物
 
 ```bash
 npm run build
@@ -294,14 +311,14 @@ npm run preview
 - `npm run build` 仅生成静态产物。
 - `npm run preview` 下只能使用 `direct`；`local_proxy` 仍然只在 `npm run dev` 生效。
 
-### 4. 部署
+### 5. 部署
 
 - 当前仓库保留了 GitHub Pages 自动部署工作流，配置见 `.github/workflows/deploy.yml`。
 - 推送符合 `v*` 规则的标签后，会自动执行 `npm ci`、`npm run build` 并发布到 GitHub Pages。
 - GitHub Pages、`vite preview`、静态托管等环境都只能使用 `direct`，并且要求上游接口支持浏览器直连（`HTTPS`、`CORS`、预检）。
 - `deploy/` 目录中的 Docker / Nginx 文件仍保留，可作为自托管部署参考。
 
-### 5. 广场 Worker 常用操作
+### 6. 广场 Worker 常用操作
 
 以下命令都在仓库根目录下执行，示例使用 PowerShell。真实的 `wrangler.jsonc`、`.dev.vars`、Cloudflare 资源 ID 和密钥不要提交到 Git。
 
