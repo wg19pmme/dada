@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env.local
+.env.local.bak
+logs/*
+!logs/.gitkeep
+/.idea/
+.ace-tool/
+workers/**/.dev.vars
+workers/**/.dev.vars.*
+workers/**/.wrangler/
+workers/square-api/wrangler.jsonc
