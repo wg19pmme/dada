@@ -254,14 +254,32 @@ bash build-portable.sh
 
 > 进阶：若想连 Node.js 都不用装，可把该 zip 目录与对应平台的**便携版 Node.js** 一起打包发布，即可真正做到零环境依赖。
 
-#### 0.2 想要更原生的桌面应用？用 Tauri 套壳
+#### 0.2 想要更原生的桌面应用？用 Tauri 套壳（已接入，一键打包 Windows .exe）
 
-如果你希望得到一个**真正的桌面 App**（双击 `.exe` / `.app` 直接打开，连浏览器都不用），推荐用 **Tauri** 套壳：
+本项目已内置完整的 **Tauri v2** 工程（`src-tauri/`），可以直接在 Windows 上打包出**双击即开、无需装 Node/浏览器**的桌面应用：
 
-- 本应用是纯前端、构建产物为相对路径的静态站点（`base: './'`），天然适合 Tauri 的 `Webview` 承载。
-- 基础接入：在仓库根目录执行 `npm create tauri-app`，把 `dist/` 设为 `frontendDist`，即可把整个应用套进原生窗口；本地数据仍由 Webview 内置的 IndexedDB 保存，无需改动业务代码。
-- Tauri 产出的 exe/dmg 体积小（相比 Electron 可小几十倍），且不要求用户装 Node。
-- 注意：Tauri 打包需在目标平台（Windows/macOS/Linux）各自编译并签名，需在对应系统或 CI 各平台 Runner 上执行 `tauri build`，无法在一个环境里同时产出全部平台安装包。
+- 纯前端静态产物 + Tauri Webview 承载，本地数据仍由内置 IndexedDB 保存，业务代码无需改动。
+- 已通过 `tauri-plugin-http` 在前端启动时替换全局 `fetch`（见 `src/lib/tauri.ts`），**自动绕过系统 Webview 的 CORS 限制**，可正常直连生图 API 上游；在普通浏览器里运行时行为完全不变。
+- exe 体积小（相比 Electron 小几十倍），不要求用户装 Node。
+
+**Windows 一键打包（需先装 Rust 环境，一次性）**
+
+1. 装 [Rust](https://www.rust-lang.org/tools/install)（默认下一步即可）
+2. 安装 WebView2 运行库（Win10/11 通常已自带）
+3. 在仓库根目录执行：
+
+```bash
+npm install
+npm run tauri:build
+```
+
+构建产物在 `src-tauri/target/release/bundle/` 下：
+
+- `msi/`：安装包
+- `nsis/`：安装程序（.exe）
+- `exe/`：免安装单文件可执行程序
+
+> 注意：Tauri 打包需在目标平台各自编译。本仓库内置的是 Linux CI，无法在 Linux 环境直接产出 Windows exe；要出 `.exe` 请在 Windows 机器上执行 `npm run tauri:build`（或在 Windows Runner 的 CI 中执行）。
 
 ### 1. 配置 API 上游（必要）
 
