@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { normalizeBaseUrl, readClientDevProxyConfig } from '../../../../lib/devProxy'
 import { useStore, exportData, importData, clearAllData } from '../../../../store'
 import { DEFAULT_SETTINGS, type AppSettings } from '../../../../types'
+import { isVaultConfigured } from '../../../../lib/vault'
 import { useCloseOnEscape } from '../../../../hooks/useCloseOnEscape'
 import ApiSettingsSection from './ApiSettingsSection'
 import DataManagementSection from './DataManagementSection'
@@ -29,6 +30,10 @@ export default function SettingsModal() {
   const updateProviderName = useStore((s) => s.updateProviderName)
   const removeProvider = useStore((s) => s.removeProvider)
   const setConfirmDialog = useStore((s) => s.setConfirmDialog)
+  const setupVault = useStore((s) => s.setupVault)
+  const commitVault = useStore((s) => s.commitVault)
+  const lockVault = useStore((s) => s.lockVault)
+  const changePassword = useStore((s) => s.changePassword)
 
   const importInputRef = useRef<HTMLInputElement>(null)
   const [draft, setDraft] = useState<AppSettings>(() => normalizeSettingsDraft(settings))
@@ -36,8 +41,21 @@ export default function SettingsModal() {
   const [showApiKey, setShowApiKey] = useState(false)
   const [providerNameInput, setProviderNameInput] = useState('')
 
+  // 首次使用（未设置密码）时先引导设置访问密码
+  const [setupPassword, setSetupPassword] = useState('')
+  const [setupPasswordConfirm, setSetupPasswordConfirm] = useState('')
+  const [setupError, setSetupError] = useState('')
+  const [setupBusy, setSetupBusy] = useState(false)
+
+  // 修改密码弹层
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [changeError, setChangeError] = useState('')
+
   const proxyConfig = readClientDevProxyConfig()
   const activeProvider = providers.find((provider) => provider.id === activeProviderId) ?? null
+  const needsSetup = showSettings && !isVaultConfigured()
 
   useEffect(() => {
     if (!showSettings) return
@@ -79,8 +97,10 @@ export default function SettingsModal() {
           ? DEFAULT_SETTINGS.timeout
           : nextTimeout,
     })
+    // 将最新配置加密落盘
+    void commitVault().catch(() => {})
     setShowSettings(false)
-  }, [commitSettings, draft, setShowSettings, timeoutInput])
+  }, [commitSettings, commitVault, draft, setShowSettings, timeoutInput])
 
   const commitTimeout = useCallback(() => {
     const nextTimeout = Number(timeoutInput)
@@ -119,6 +139,67 @@ export default function SettingsModal() {
     event.target.value = ''
   }
 
+  const handleSetupPassword = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (setupBusy) return
+    if (setupPassword.length < 4) {
+      setSetupError('密码至少 4 位')
+      return
+    }
+    if (setupPassword !== setupPasswordConfirm) {
+      setSetupError('两次输入的密码不一致')
+      return
+    }
+    setSetupBusy(true)
+    setSetupError('')
+    try {
+      const normalizedDraft = {
+        ...draft,
+        requestMode: normalizeRuntimeRequestMode(draft.requestMode),
+      }
+      await setupVault(setupPassword, {
+        settings: normalizedDraft,
+        providers,
+        activeProviderId,
+      })
+      setSetupPassword('')
+      setSetupPasswordConfirm('')
+    } catch (err) {
+      setSetupError(err instanceof Error ? err.message : '设置密码失败')
+    } finally {
+      setSetupBusy(false)
+    }
+  }
+
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (newPassword.length < 4) {
+      setChangeError('新密码至少 4 位')
+      return
+    }
+    const ok = await changePassword(oldPassword, newPassword)
+    if (ok) {
+      setShowChangePassword(false)
+      setOldPassword('')
+      setNewPassword('')
+      setChangeError('')
+    } else {
+      setChangeError('旧密码不正确')
+    }
+  }
+
+  const handleLock = () => {
+    commitSettings({
+      ...draft,
+      timeout:
+        timeoutInput.trim() === '' || Number.isNaN(Number(timeoutInput))
+          ? DEFAULT_SETTINGS.timeout
+          : Number(timeoutInput),
+    })
+    lockVault()
+    setShowSettings(false)
+  }
+
   return (
     <div className="fixed inset-0 z-[70] flex justify-end">
       <div
@@ -136,6 +217,29 @@ export default function SettingsModal() {
               设置
             </h3>
             <div className="flex items-center gap-3">
+              {!needsSetup && (
+                <>
+                  <button
+                    onClick={() => {
+                      setOldPassword('')
+                      setNewPassword('')
+                      setChangeError('')
+                      setShowChangePassword(true)
+                    }}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
+                    title="修改访问密码"
+                  >
+                    改密码
+                  </button>
+                  <button
+                    onClick={handleLock}
+                    className="rounded-lg px-2 py-1 text-xs font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/[0.06] dark:hover:text-gray-200"
+                    title="锁定保险库"
+                  >
+                    锁定
+                  </button>
+                </>
+              )}
               <span className="select-none font-mono text-xs text-gray-400 dark:text-gray-500">v{__APP_VERSION__}</span>
               <button
                 onClick={handleClose}
@@ -150,51 +254,137 @@ export default function SettingsModal() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-5 custom-scrollbar">
-          <div className="space-y-6">
-            <ApiSettingsSection
-              draft={draft}
-              setDraft={setDraft}
-              timeoutInput={timeoutInput}
-              setTimeoutInput={setTimeoutInput}
-              showApiKey={showApiKey}
-              setShowApiKey={setShowApiKey}
-              providerNameInput={providerNameInput}
-              setProviderNameInput={setProviderNameInput}
-              providers={providers}
-              activeProviderId={activeProviderId}
-              proxyConfig={proxyConfig}
-              commitSettings={commitSettings}
-              commitProviderName={commitProviderName}
-              commitTimeout={commitTimeout}
-              flushDraft={flushDraft}
-              onActiveProviderChange={setActiveProvider}
-              onCreateProvider={createProvider}
-              onRequestRemoveProvider={() => {
-                if (!activeProvider) return
-                setConfirmDialog({
-                  title: '删除供应商',
-                  message: `确定删除供应商“${activeProvider.name}”吗？`,
-                  action: () => removeProvider(activeProvider.id),
-                })
-              }}
-            />
-
-            <DataManagementSection
-              importInputRef={importInputRef}
-              onImportChange={handleImport}
-              onExport={() => exportData()}
-              onOpenImport={() => importInputRef.current?.click()}
-              onClearAll={() =>
-                setConfirmDialog({
-                  title: '清空所有数据',
-                  message: '确定要清空所有任务记录和图片数据吗？此操作不可恢复。',
-                  action: () => clearAllData(),
-                })
-              }
-            />
+        {needsSetup ? (
+          <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto px-6 py-8">
+            <div className="mx-auto w-full max-w-sm">
+              <div className="mb-5 flex items-center justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500">
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-center text-lg font-semibold text-gray-800 dark:text-gray-100">设置访问密码</h2>
+              <p className="mt-1 text-center text-sm text-gray-500 dark:text-gray-400">
+                密码将用于加密保存生图 API 配置，每次打开应用需输入解锁
+              </p>
+              <form onSubmit={handleSetupPassword} className="mt-6 space-y-3">
+                <input
+                  type="password"
+                  autoFocus
+                  value={setupPassword}
+                  onChange={(event) => setSetupPassword(event.target.value)}
+                  placeholder="设置访问密码（至少 4 位）"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/10 dark:bg-gray-800 dark:text-gray-100"
+                />
+                <input
+                  type="password"
+                  value={setupPasswordConfirm}
+                  onChange={(event) => setSetupPasswordConfirm(event.target.value)}
+                  placeholder="再次输入密码"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/10 dark:bg-gray-800 dark:text-gray-100"
+                />
+                {setupError && <p className="text-xs text-red-500">{setupError}</p>}
+                <button
+                  type="submit"
+                  disabled={setupBusy}
+                  className="w-full rounded-lg bg-blue-600 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {setupBusy ? '保存中…' : '保存并继续'}
+                </button>
+              </form>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1.5rem)] pt-5 custom-scrollbar">
+            <div className="space-y-6">
+              <ApiSettingsSection
+                draft={draft}
+                setDraft={setDraft}
+                timeoutInput={timeoutInput}
+                setTimeoutInput={setTimeoutInput}
+                showApiKey={showApiKey}
+                setShowApiKey={setShowApiKey}
+                providerNameInput={providerNameInput}
+                setProviderNameInput={setProviderNameInput}
+                providers={providers}
+                activeProviderId={activeProviderId}
+                proxyConfig={proxyConfig}
+                commitSettings={commitSettings}
+                commitProviderName={commitProviderName}
+                commitTimeout={commitTimeout}
+                flushDraft={flushDraft}
+                onActiveProviderChange={setActiveProvider}
+                onCreateProvider={createProvider}
+                onRequestRemoveProvider={() => {
+                  if (!activeProvider) return
+                  setConfirmDialog({
+                    title: '删除供应商',
+                    message: `确定删除供应商“${activeProvider.name}”吗？`,
+                    action: () => removeProvider(activeProvider.id),
+                  })
+                }}
+              />
+
+              <DataManagementSection
+                importInputRef={importInputRef}
+                onImportChange={handleImport}
+                onExport={() => exportData()}
+                onOpenImport={() => importInputRef.current?.click()}
+                onClearAll={() =>
+                  setConfirmDialog({
+                    title: '清空所有数据',
+                    message: '确定要清空所有任务记录和图片数据吗？此操作不可恢复。',
+                    action: () => clearAllData(),
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
+
+        {showChangePassword && !needsSetup && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
+            <form
+              onSubmit={handleChangePassword}
+              className="w-full max-w-sm rounded-2xl border border-gray-200/80 bg-white p-6 shadow-xl dark:border-white/[0.08] dark:bg-gray-900"
+            >
+              <h3 className="mb-4 text-base font-semibold text-gray-800 dark:text-gray-100">修改访问密码</h3>
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(event) => setOldPassword(event.target.value)}
+                  placeholder="旧密码"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/10 dark:bg-gray-800 dark:text-gray-100"
+                />
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="新密码（至少 4 位）"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/10 dark:bg-gray-800 dark:text-gray-100"
+                />
+                {changeError && <p className="text-xs text-red-500">{changeError}</p>}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePassword(false)}
+                    className="rounded-lg px-3 py-1.5 text-sm text-gray-500 transition hover:bg-gray-100 dark:hover:bg-white/[0.06]"
+                  >
+                    取消
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-500"
+                  >
+                    确定
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   )

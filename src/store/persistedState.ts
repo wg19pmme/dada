@@ -3,18 +3,15 @@ import { DEFAULT_SETTINGS } from '../types'
 import type { AppState, PersistedAppStateSnapshot } from './contracts'
 import {
   createInitialProviderState,
-  getProviderSettings,
   normalizeCategoryList,
   normalizePromptLibraryItems,
-  normalizeProviderList,
   resolveActiveCategoryFilter,
 } from './domain'
 
 export function buildPersistedAppStateSnapshot(state: AppState): PersistedAppStateSnapshot {
+  // 注意：settings / providers / activeProviderId 属于敏感配置（含 apiKey），
+  // 不写入明文 localStorage，统一由密码加密保险库（vault）管理。
   return {
-    settings: state.settings,
-    providers: state.providers,
-    activeProviderId: state.activeProviderId,
     categories: state.categories,
     activeCategoryFilter: state.activeCategoryFilter,
     params: state.params,
@@ -44,41 +41,21 @@ export function mergePersistedAppState(
   persistedState: Partial<AppState> | undefined,
   currentState: AppState,
 ): AppState {
-  const normalizedProviders = normalizeProviderList(persistedState?.providers)
+  // settings / providers / activeProviderId 已从持久化快照中移除，
+  // 这里仅以“空密钥默认态”初始化；真实配置在解锁保险库后由 vaultSlice 填充。
+  const lockedProviderState = createInitialProviderState({
+    ...DEFAULT_SETTINGS,
+    apiKey: '',
+  })
   const normalizedCategories = normalizeCategoryList(persistedState?.categories)
   const normalizedPromptLibrary = normalizePromptLibraryItems(persistedState?.promptLibrary)
-  const providerState =
-    normalizedProviders.length > 0
-      ? (() => {
-          const activeProvider =
-            normalizedProviders.find((provider) => provider.id === persistedState?.activeProviderId) ??
-            normalizedProviders[0]
-
-          return {
-            providers: normalizedProviders,
-            activeProviderId: activeProvider.id,
-            settings: getProviderSettings(activeProvider),
-          }
-        })()
-      : createInitialProviderState({
-          ...currentState.settings,
-          ...persistedState?.settings,
-        })
-
-  // 本地便携版：API 上游接口设置始终以源码 local-config.ts 为准，
-  // 忽略浏览器本地缓存中可能残留的旧设置，保证“改源码即生效”。
-  const sourceSettings = { ...DEFAULT_SETTINGS }
-  const sourceProvider = providerState.providers.map((provider) => ({
-    ...provider,
-    ...sourceSettings,
-  }))
 
   return {
     ...currentState,
     ...persistedState,
-    settings: sourceSettings,
-    providers: sourceProvider,
-    activeProviderId: providerState.activeProviderId,
+    settings: lockedProviderState.settings,
+    providers: lockedProviderState.providers,
+    activeProviderId: lockedProviderState.activeProviderId,
     categories: normalizedCategories,
     activeCategoryFilter: resolveActiveCategoryFilter(
       persistedState?.activeCategoryFilter,

@@ -532,6 +532,8 @@ export async function importData(file: File) {
     useStore
       .getState()
       .replaceProviderState(mergedProviders, importedActiveProviderId ?? currentState.activeProviderId)
+    // 导入会合并供应商配置（可能含 apiKey），需重新加密落盘
+    await useStore.getState().commitVault().catch(() => {})
     useStore
       .getState()
       .replaceCategoryState(mergedCategories, importedActiveCategoryFilter ?? currentState.activeCategoryFilter)

@@ -2,11 +2,12 @@
 
 > **本地便携版说明**
 >
-> 本仓库为 `insistanan/GPT_Image_Playground` 的本地便携版改造：
+> 本仓库为 `insistanan/GPT_Image_Playground` 的改造：
 > - **已去除图片分享广场**：不再有“广场”页面与广场入口。
 > - **已去除分享功能**：移除任务/提示词分享到广场的所有入口。
 > - **图片本地缓存**：图片与任务数据通过 IndexedDB 存储在浏览器本地，天然满足本地缓存需求。
-> - **设置改为源码配置**：不再提供界面上的设置入口；生图 API 上游接口（baseUrl / apiKey / model 等）统一在源码 `src/local-config.ts` 中配置，保存后重新构建即生效。
+> - **设置密码加密保护**：生图 API 上游接口（baseUrl / apiKey / model 等）在界面配置，并用**访问密码**通过 `PBKDF2 + AES-GCM` 加密后保存在浏览器本地；每次打开应用需输入密码解锁才能使用，`apiKey` 不在磁盘落明文，也不会写进源码/公开仓库。
+> - **可静态部署**：`npm run build` 产出的 `dist/` 为纯静态站点（相对路径），可直接部署到 Cloudflare Pages / GitHub Pages / Vercel 等静态托管。
 
 一个面向 OpenAI / GPT Image 工作流的本地优先图片生成与编辑工作台。  
 它提供纯前端 Web UI，支持文本生图、参考图编辑、局部编辑、任务画廊、多供应商配置、Responses / Images 双协议兼容、流式优先传输、生成中增量保留已出图，以及本地数据导入导出。
@@ -224,8 +225,8 @@ workers/square-api
 
 ## 快速开始
 
-> 本便携版已**移除界面上的“设置”入口**，生图 API 上游接口统一在源码
-> `src/local-config.ts` 中配置（见下方“配置 API 上游”）。
+> 生图 API 上游接口通过**界面设置**配置，并用**访问密码**加密保存（见下方“配置 API 上游”）。
+> 首次打开请先点击右上角**设置**，按提示**设置访问密码**后再填写 API 信息。
 
 ### 0. 打开即用（不会敲命令的小白模式）
 
@@ -315,18 +316,19 @@ npm run tauri:build
 - `nsis/`：安装程序（.exe）
 - `exe/`：免安装单文件可执行程序
 
-### 1. 配置 API 上游（必要）
+### 1. 配置 API 上游（必要，带密码加密）
 
-编辑源码文件 **`src/local-config.ts`**，填入你的生图 API 上游地址、Key 和模型，然后重新构建/启动：
+生图 API 上游接口在**界面设置**中配置，并使用**访问密码**加密后保存在浏览器本地：
 
-```ts
-// src/local-config.ts
-baseUrl: 'https://api.openai.com', // 上游接口地址
-apiKey: 'sk-xxxx',                 // 你的 API Key（勿提交到公开仓库）
-model: 'gpt-image-2',              // 生图模型
-```
+1. 打开应用，点击右上角**设置**图标。
+2. 首次使用会先引导**设置访问密码**（至少 4 位）——该密码用于加密保存你的 API 配置。
+3. 设置密码后，填写生图 API 上游的 `baseUrl`、`apiKey`、`model` 等字段并保存。
+4. 保存后，`apiKey` 等敏感字段会被 `PBKDF2 + AES-GCM` 加密后落盘；**下次打开应用需输入密码解锁**才能使用。
 
-> 该配置始终优先于浏览器本地缓存中的旧设置，改完即生效。
+> - 密码**不会**被存储，仅用于在本地派生加密密钥；即使导出浏览器数据，没有密码也解不开 `apiKey`。
+> - 需要改密码：解锁后点设置里的**改密码**。
+> - 想锁定当前会话：点设置里的**锁定**，即会清空内存中的 API Key。
+> - 由于配置已改为界面+加密，不再依赖源码 `src/local-config.ts`；该文件仅保留非敏感的默认值（baseUrl / model 等），`apiKey` 默认恒为空。
 
 ### 2. 本地开发（需命令）
 
@@ -391,10 +393,42 @@ npm run preview
 
 ### 5. 部署
 
+#### 5.1 Cloudflare Pages（推荐，免费）
+
+本项目构建产物为**纯静态站点**（相对路径），可直接部署到 Cloudflare Pages：
+
+**方式 A：直接拖拽 `dist/` 上传**
+
+```bash
+npm run build   # 生成 dist/
+```
+
+到 Cloudflare 控制台 → **Workers & Pages** → **Create** → **Pages** → **Upload assets**，把 `dist/` 文件夹整个拖进去即可发布。
+
+**方式 B：连接 Git 仓库自动部署**
+
+1. Cloudflare 控制台 → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**，选择本仓库。
+2. 构建配置：
+   - **Build command**：`npm run build`
+   - **Build output directory**：`dist`
+3. 保存后 Cloudflare 会在每次推送时自动构建并发布。
+
+> SPA 路由回退已通过 `public/_redirects`（内容：`/* /index.html 200`）自动带上，无需额外配置。
+
+**注意事项**
+
+- 静态托管环境只能使用 `direct` 请求模式，要求上游接口支持浏览器直连（`HTTPS`、`CORS`、预检）。
+- 由于本项目**默认纯前端直连**，API Key 仅在解锁后存在于浏览器内存中，并加密保存于浏览器本地（见“配置 API 上游”）；没有密码无法使用。
+- 想更安全地隐藏上游 Key，可改用 Cloudflare Pages Functions / Worker 做代理，把 Key 存为 Cloudflare secret（属于进阶方案，本项目未默认启用）。
+
+#### 5.2 GitHub Pages
+
 - 当前仓库保留了 GitHub Pages 自动部署工作流，配置见 `.github/workflows/deploy.yml`。
 - 推送符合 `v*` 规则的标签后，会自动执行 `npm ci`、`npm run build` 并发布到 GitHub Pages。
-- GitHub Pages、`vite preview`、静态托管等环境都只能使用 `direct`，并且要求上游接口支持浏览器直连（`HTTPS`、`CORS`、预检）。
-- `deploy/` 目录中的 Docker / Nginx 文件仍保留，可作为自托管部署参考。
+
+#### 5.3 自托管（Docker / Nginx）
+
+- `deploy/` 目录中的 Docker / Nginx 文件可作为自托管部署参考。
 
 ### 6. 广场 Worker 常用操作
 

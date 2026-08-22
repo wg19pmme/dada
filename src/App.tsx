@@ -3,6 +3,7 @@ import { initStore, startRecycleBinJanitor } from './store'
 import { Header } from './app/components'
 import { ImageContextMenu, TaskGrid } from './features/gallery'
 import { InputBar, PromptLibraryDrawer, SearchBar } from './features/input'
+import { SettingsModal, UnlockModal } from './features/settings'
 import { DetailModal, ImageEditModal, Lightbox } from './features/viewer'
 import { ConfirmDialog, Toast } from './shared/components'
 
@@ -33,6 +34,8 @@ export default function App() {
       <DetailModal />
       <Lightbox />
       <PromptLibraryDrawer />
+      <SettingsModal />
+      <UnlockModal />
       <ConfirmDialog />
       <Toast />
       <ImageContextMenu />

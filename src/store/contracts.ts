@@ -13,6 +13,13 @@ import type {
   TaskView,
 } from '../types'
 
+/** 需要放入密码保险库加密保存的敏感配置快照 */
+export interface VaultSnapshot {
+  settings: AppSettings
+  providers: ProviderConfig[]
+  activeProviderId: string
+}
+
 export interface AppState {
   appView: AppView
   setAppView: (view: AppView) => void
@@ -73,6 +80,17 @@ export interface AppState {
   setShowSettings: (visible: boolean) => void
   showPromptLibrary: boolean
   setShowPromptLibrary: (visible: boolean) => void
+
+  // 密码保险库（vault）状态
+  unlocked: boolean
+  setUnlocked: (unlocked: boolean) => void
+  setupVault: (password: string, snapshot: VaultSnapshot) => Promise<void>
+  saveVault: (snapshot: VaultSnapshot) => Promise<void>
+  commitVault: () => Promise<void>
+  unlockVault: (password: string) => Promise<boolean>
+  lockVault: () => void
+  changePassword: (oldPassword: string, newPassword: string) => Promise<boolean>
+
   shareToSquareTarget: SquareShareTarget | null
   setShareToSquareTarget: (target: SquareShareTarget | null) => void
 
