@@ -1,11 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
-import { setupTauriFetch } from './lib/tauri'
 import './index.css'
-
-// Tauri 桌面壳：先替换全局 fetch，绕开 CORS（浏览器环境下为无操作）
-setupTauriFetch()
 
 const APP_CACHE_PREFIX = 'gpt-image-playground'
 

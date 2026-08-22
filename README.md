@@ -15,9 +15,9 @@
 
 这个项目现在更像一个“图片生成工作台”，而不是一次性出图的小面板：它会记录每次请求的参数、供应商、传输方式、输出图、失败上下文和来源链路，让图片从生成、筛选、复用、编辑到归档都有明确位置。
 
-它仍然保持纯前端和本地优先：默认数据只存在浏览器里，适合个人工作流、私有 API 节点和高频试验；当用户需要公开交流时，才通过图片分享广场把选定的成功图任务、任务链或提示词发布出去。广场后端第一版使用 Cloudflare Worker + D1 + R2，但前端只依赖 `/api/v1` 协议，后续可以迁移到真实后端。
+它仍然保持纯前端和本地优先：默认数据只存在浏览器里，适合个人工作流、私有 API 节点和高频试验。
 
-项目重点放在实际创作流程里的细节：多供应商切换、Images / Responses 双协议兼容、流式优先与自动降级、尺寸合法范围规整、参考图输入策略、局部编辑蒙版、任务分类/收藏/回收站、多选与右键菜单、任务链追踪、ZIP 导入导出，以及可控的远端分享与存储清理。
+项目重点放在实际创作流程里的细节：多供应商切换、Images / Responses 双协议兼容、流式优先与自动降级、尺寸合法范围规整、参考图输入策略、局部编辑蒙版、任务分类/收藏/回收站、多选与右键菜单、任务链追踪、ZIP 导入导出，以及密码加密的本地配置保护。
 
 ## 界面预览
 
@@ -54,8 +54,6 @@
 - `Images API` 与 `Responses API` 都可按设置优先尝试流式；不兼容时会自动回退，并记录实际传输方式。
 - 失败任务可原任务重试；运行中任务可确认中止；多图任务会边出边存，后续失败也尽量保留已生成结果。
 - 标准任务卡片模式与纯图拼贴模式并存，支持拖图/粘图直接生成单图任务。
-- 图片分享广场前端骨架，按 `/api/v1` 协议读取公开任务和提示词，并支持本地内容显式发布。
-- 广场 Worker 会在取消分享时清理 R2 图片资产，并默认自动清理发布超过 90 天的公开图任务分享。
 - 分类、收藏、回收站、搜索、状态筛选、多选、框选、批量操作。
 - 尺寸选择器、比例预设、自定义宽高、合法尺寸自动规整。
 - 图片右键菜单、任务右键菜单、大图查看、快速复用历史配置、多输出编辑翻页、来源任务链查看。
@@ -77,7 +75,6 @@ React UI
   │  │  └─ size-picker/          尺寸选择器按模式面板 / 标签区 / 共享常量拆分
   │  ├─ settings/components/
   │  │  └─ settings-modal/       设置抽屉按供应商 / 凭据 / 请求策略 / 数据管理拆分
-  │  ├─ square/                  图片分享广场，按页面 / 卡片 / 分享弹窗 / API adapter / manifest 构建拆分
   │  ├─ gallery/components/
   │  │  ├─ task-grid/            网格容器按框选 hook、工具条、网格体、纯图拼贴模式拆分
   │  │  ├─ task-card/            卡片按预览区、元信息、操作区、状态 hook 拆分
@@ -97,11 +94,6 @@ React UI
   ├─ IndexedDB + 内存缓存        图片、任务、完整错误日志持久化、去重、按需读取
   ├─ Dev Proxy Logger            本地代理请求转发与开发机 success/error 日志落盘
   └─ PWA Shell                   manifest + service worker
-
-workers/square-api
-  ├─ src/                         图片分享广场 API 路由、校验、配额、用量统计、R2 资产读取
-  ├─ migrations/                  D1 数据库迁移
-  └─ wrangler.example.jsonc       Cloudflare Worker / D1 / R2 binding 示例配置
 ```
 
 核心数据流：
@@ -112,16 +104,6 @@ workers/square-api
   -> lib/api.ts 按协议发送请求
   -> lib/db/index.ts 与 imageAssets 写入 IndexedDB / 内存缓存
   -> TaskGrid / DetailModal / Lightbox 展示
-```
-
-广场数据流：
-
-```text
-用户显式分享
-  -> src/features/square/lib/buildShareManifest.ts 打包 Share Manifest 与图片 Blob
-  -> src/features/square/lib/squareApiClient.ts 调用 /api/v1
-  -> workers/square-api 检查配额和容量后写入 D1 与 R2
-  -> SquarePage 通过 /api/v1/square 分页读取公开内容
 ```
 
 ## 关键设计点
@@ -142,7 +124,7 @@ workers/square-api
   IndexedDB 访问已拆到 `src/lib/db/schema.ts`、`src/lib/db/tasks.ts`、`src/lib/db/images.ts`，分别处理 schema、任务记录和图片记录/迁移逻辑，避免协议层和 UI 直接接触底层存储细节。
 
 - 组件分层细化
-  当单个功能模块继续膨胀时，会在 feature 内部继续下钻子目录，例如 `input-bar/`、`prompt-library-drawer/`、`search-bar/`、`size-picker/`、`task-grid/`、`task-card/`、`settings-modal/`、`square/`、`detail-modal/`、`image-edit-modal/`、`lightbox/`，把容器、分区组件、交互 hook、选项常量和交互壳层拆开，而不是继续把实现堆回单个入口文件。
+  当单个功能模块继续膨胀时，会在 feature 内部继续下钻子目录，例如 `input-bar/`、`prompt-library-drawer/`、`search-bar/`、`size-picker/`、`task-grid/`、`task-card/`、`settings-modal/`、`detail-modal/`、`image-edit-modal/`、`lightbox/`，把容器、分区组件、交互 hook、选项常量和交互壳层拆开，而不是继续把实现堆回单个入口文件。
 
 - 长请求传输策略
   设置中的传输偏好会同时影响 `Images API` 与 `Responses API`。兼容时优先走流式；不兼容时自动回退到普通 JSON，并把任务最终实际走的是 `流式 / JSON / JSON（降级）` 记录到任务元信息与界面状态里。
@@ -206,8 +188,7 @@ workers/square-api
 - 本地开发模式支持可选同源代理，缓解 CORS 问题。
 - 浏览器侧的“复制完整报错”依赖本地 IndexedDB 中的任务错误快照，不依赖 dev server 文件日志。
 - 本地代理模式会把成功与失败请求分别记录到开发机的 `logs/proxy-success.jsonl` 与 `logs/proxy-error.jsonl`。
-- 支持静态部署。
-- 提供 `deploy/` 下的 Docker 与 Nginx 相关文件。
+- 支持静态部署（Cloudflare Pages / GitHub Pages / Vercel 等）。
 - 提供 `manifest.webmanifest` 与 `sw.js`，具备基础 PWA 能力。
 
 ## 技术栈
@@ -229,93 +210,13 @@ workers/square-api
 > 生图 API 上游接口通过**界面设置**配置，并用**访问密码**加密保存（见下方“配置 API 上游”）。
 > 首次打开请先点击右上角**设置**，按提示**设置访问密码**后再填写 API 信息。
 
-### 0. 打开即用（不会敲命令的小白模式）
+### 0. 快速使用
 
-仓库根目录提供**一键启动脚本**，双击即可自动打开，全程无需敲命令：
+本项目是**面向 Git 直部署**的云端便携版：把 API 地址、Key、模型、网页登录密码统一配置在
+Cloudflare Pages 环境变量里，部署后任何设备打开网页输入同一个登录密码即可使用。
 
-- **Windows**：双击 `start.bat`
-- **macOS / Linux**：双击 `start.sh`
-
-启动脚本采用“**静态产物优先**”策略：
-
-1. 若目录下存在构建产物 `dist/`，直接用内置**零依赖静态服务器**（`server.js`）启动，**无需 node_modules、无需联网安装依赖**，即开即用。
-2. 若没有 `dist/`，才回退到开发模式：自动装依赖 → `vite dev`。
-
-> 前置条件：机器上需安装 [Node.js 18+](https://nodejs.org)。
-> 首次启动后请先按下方“配置 API 上游”填入你的 API 信息。
-
-#### 0.1 生成“解压即用”绿色安装包
-
-运行打包脚本，可把 `dist/` + 静态服务器 + 启动脚本一起打进 zip，分发给别人解压后双击即用：
-
-```bash
-bash build-portable.sh
-```
-
-会在 `dist-portable/` 下生成 `gpt-image-playground-<版本>-<平台>.zip`。用户解压后双击 `start.bat` / `start.sh` 即可，无需 `node_modules`、无需 `npm install`。
-
-> 进阶：若想连 Node.js 都不用装，可把该 zip 目录与对应平台的**便携版 Node.js** 一起打包发布，即可真正做到零环境依赖。
-
-#### 0.2 想要更原生的桌面应用？用 Tauri 套壳（已接入，一键打包 Windows .exe）
-
-本项目已内置完整的 **Tauri v2** 工程（`src-tauri/`），可以直接在 Windows 上打包出**双击即开、无需装 Node/浏览器**的桌面应用：
-
-- 纯前端静态产物 + Tauri Webview 承载，本地数据仍由内置 IndexedDB 保存，业务代码无需改动。
-- 已通过 `tauri-plugin-http` 在前端启动时替换全局 `fetch`（见 `src/lib/tauri.ts`），**自动绕过系统 Webview 的 CORS 限制**，可正常直连生图 API 上游；在普通浏览器里运行时行为完全不变。
-- exe 体积小（相比 Electron 小几十倍），不要求用户装 Node。
-
-**Windows 一键打包（需先装 Rust 环境，一次性）**
-
-1. 装 [Rust](https://www.rust-lang.org/tools/install)（默认下一步即可）
-2. 安装 WebView2 运行库（Win10/11 通常已自带）
-3. 在仓库根目录执行：
-
-```bash
-npm install
-npm run tauri:build
-```
-
-构建产物在 `src-tauri/target/release/bundle/` 下：
-
-- `msi/`：安装包
-- `nsis/`：安装程序（.exe）
-- `exe/`：免安装单文件可执行程序
-
-> 注意：Tauri 打包需在目标平台各自编译。本仓库内置的是 Linux CI，无法在 Linux 环境直接产出 Windows exe；要出 `.exe` 必须在 Windows 环境编译。
-
-**方式 A：网页“点一下”自动打包（推荐，配好一次以后最省事）**
-
-仓库已配置 CNB 云原生构建流水线（`.cnb.yml` + `.cnb/web_trigger.yml`），支持在网页上**点一下按钮**自动在 Windows 构建机上打包并产出 `.exe` 安装包：
-
-1. **一次性接入一台 Windows 构建机**（见下方“接入 Windows 构建机”）。
-2. 打开仓库任意分支的「代码-分支详情页」，点击 **“打包 Windows 桌面版 (.exe)”** 按钮。
-3. 等待构建完成后，到仓库的 **Release 页面**（`https://cnb.cool/<组织>/<仓库>/-/releases`）下载对应版本的 `.exe` / `.msi`，发给小白双击安装即可。
-
-**接入 Windows 构建机（一次性，仅需一台装有 Windows 的电脑）**
-
-1. 在该 Windows 电脑上安装 [Node.js 18+](https://nodejs.org) 与 [Rust](https://www.rust-lang.org/tools/install)（均默认“下一步”即可），并确保已装 WebView2 运行库（Win10/11 一般自带）。
-2. 进入「根组织 → 组织设置 → 构建节点」，点击「+ 新增 Runner」，填写名称与标签（如 `windows`、`x86_64`）保存。
-3. 点击该 Runner 行尾的「连接指引」，在 Windows 电脑上执行弹窗里的一键接入脚本，节点变为「在线」即接入成功。
-4. 之后每次在网页点一下“打包 Windows 桌面版”按钮即可自动出 `.exe`。
-
-> 说明：Windows 打包必须运行在 Windows 环境，平台默认的 Linux 构建机无法产出 Windows exe，故需要接入一台 Windows 自托管构建机；这是 Tauri 的客观限制，无法绕过。
-
-**方式 B：本地手动打包（无需网页，但需本机装 Rust）**
-
-1. 装 [Rust](https://www.rust-lang.org/tools/install)（默认下一步即可）
-2. 安装 WebView2 运行库（Win10/11 通常已自带）
-3. 在仓库根目录执行：
-
-```bash
-npm install
-npm run tauri:build
-```
-
-构建产物在 `src-tauri/target/release/bundle/` 下：
-
-- `msi/`：安装包
-- `nsis/`：安装程序（.exe）
-- `exe/`：免安装单文件可执行程序
+- 已**去掉广场与分享**功能，保留本地图片缓存（IndexedDB）与任务画廊。
+- 已清理本地便携版 / Tauri 桌面壳 / Docker 等本地部署相关的文件，仓库保持纯前端 + Cloudflare Pages Function 的最小结构。
 
 ### 1. 配置 API 上游（必要，带密码加密）
 
@@ -456,77 +357,12 @@ npm run build   # 生成 dist/
 
 #### 5.3 自托管（Docker / Nginx）
 
-- `deploy/` 目录中的 Docker / Nginx 文件可作为自托管部署参考。
+> 当前仓库已精简为**纯前端 + Cloudflare Pages Function** 的 Git 直部署形态，
+> 不再内置本地部署用的 Docker / Nginx 文件。如需自托管，参考 `npm run build` 产出的静态 `dist/` 与任意 Web 服务器即可。
 
 ### 6. 广场 Worker 常用操作
 
-以下命令都在仓库根目录下执行，示例使用 PowerShell。真实的 `wrangler.jsonc`、`.dev.vars`、Cloudflare 资源 ID 和密钥不要提交到 Git。
-
-```powershell
-cd workers/square-api
-npm install
-npx wrangler login
-```
-
-首次部署前，复制示例配置并填入自己的 D1、R2 和 CORS 域名：
-
-```powershell
-Copy-Item wrangler.example.jsonc wrangler.jsonc
-```
-
-创建 Cloudflare 资源：
-
-```powershell
-npx wrangler d1 create <database-name>
-npx wrangler r2 bucket create <bucket-name>
-```
-
-设置 Worker 密钥。命令后面是密钥名，执行后再输入密钥值：
-
-```powershell
-npx wrangler secret put TOKEN_HASH_SECRET
-npx wrangler secret put ADMIN_TOKEN
-```
-
-有数据库迁移时执行：
-
-```powershell
-npm run db:migrate
-```
-
-部署 Worker：
-
-```powershell
-npm run deploy
-```
-
-检查 Worker 是否在线：
-
-```powershell
-$api = "https://<your-worker-domain>"
-Invoke-RestMethod "$api/api/v1/health"
-```
-
-查看用量和手动清理需要配置 `ADMIN_TOKEN`：
-
-```powershell
-$api = "https://<your-worker-domain>"
-$token = "<your-admin-token>"
-
-Invoke-RestMethod "$api/api/v1/admin/usage" -Headers @{
-  Authorization = "Bearer $token"
-}
-
-Invoke-RestMethod "$api/api/v1/admin/cleanup" `
-  -Method Post `
-  -Headers @{
-    Authorization = "Bearer $token"
-    "Content-Type" = "application/json"
-  } `
-  -Body '{"dryRun":true,"limit":50}'
-```
-
-更多 Worker 命令见 [图片分享广场方案](./docs/图片分享广场/README.md)。
+> 广场 / 分享功能已按需求移除，相关 Worker（`workers/square-api`）已一并清理，不再提供广场后端部署操作。
 
 ## 项目结构
 
@@ -536,15 +372,12 @@ Invoke-RestMethod "$api/api/v1/admin/cleanup" `
 ├─ CLAUDE.md
 ├─ CONTEXT.md                  领域语言与概念约束
 ├─ .github/workflows/
-│  ├─ deploy.yml               GitHub Pages 标签部署
-│  └─ docker.yml               Docker 相关工作流
+│  └─ deploy.yml               GitHub Pages 标签部署
 ├─ docs/
 │  ├─ code-style.md            详细代码规范
 │  └─ images/                  README 截图资源
-├─ deploy/
-│  ├─ Dockerfile                Docker 构建文件
-│  ├─ nginx.conf                Nginx 配置
-│  └─ inject-api-url.sh         注入默认 API 地址脚本
+├─ functions/
+│  └─ _config.ts                Cloudflare Pages Function（云端便携版配置/登录）
 ├─ logs/
 │  ├─ proxy-success.jsonl       本地开发代理成功请求日志
 │  └─ proxy-error.jsonl         本地开发代理失败请求日志
@@ -552,8 +385,6 @@ Invoke-RestMethod "$api/api/v1/admin/cleanup" `
 │  ├─ manifest.webmanifest      PWA manifest
 │  ├─ pwa-icon.svg              PWA 图标
 │  └─ sw.js                     Service Worker
-├─ workers/
-│  └─ square-api/               图片分享广场 API 的 Cloudflare Worker 第一版实现
 ├─ src/
 │  ├─ app/                      应用级骨架组件
 │  ├─ features/                 按功能拆分的业务 UI 模块
@@ -567,7 +398,6 @@ Invoke-RestMethod "$api/api/v1/admin/cleanup" `
 │  │  │  └─ size-picker/        尺寸选择器拆分后的真实实现
 │  │  ├─ settings/components/
 │  │  │  └─ settings-modal/     设置抽屉按 API 分区 / 数据管理拆分后的真实实现
-│  │  ├─ square/                图片分享广场，按页面 / 卡片 / 分享弹窗 / API adapter / manifest 构建拆分
 │  │  └─ viewer/components/
 │  │     ├─ detail-modal/       详情弹窗拆分后的真实实现
 │  │     ├─ image-edit-modal/   局部编辑弹窗拆分后的真实实现
@@ -680,7 +510,6 @@ Invoke-RestMethod "$api/api/v1/admin/cleanup" `
 - [CLAUDE.md](./CLAUDE.md)：与 `AGENTS.md` 保持一致的项目级协作说明。
 - [docs/code-style.md](./docs/code-style.md)：详细代码规范。
 - [docs/images](./docs/images)：界面截图。
-- [deploy](./deploy)：Docker / Nginx 部署文件。
 - [dev-proxy.config.example.json](./dev-proxy.config.example.json)：本地代理配置模板。
 - [src/store.ts](./src/store.ts)：Store 统一导出入口；具体实现见 [src/store](./src/store)。
 - [src/lib/api.ts](./src/lib/api.ts)：API 统一导出入口；具体实现见 [src/lib/api](./src/lib/api)。
